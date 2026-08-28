@@ -1,0 +1,9 @@
+{
+  "name": "doll-eyes-splitter",
+  "version": "1.0.0",
+  "description": "Doll Eyes Splitter & Background Remover",
+  "scripts": {
+    "dev": "python main.py",
+    "start": "python main.py"
+  }
+}

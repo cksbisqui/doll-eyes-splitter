@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doll Eyes Splitter & Background Remover (Extended Workflow)</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Load JSZip for client-side zip creation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+  <div class="glow-container">
+    <div class="glow-sphere glow-1"></div>
+    <div class="glow-sphere glow-2"></div>
+  </div>
+
+  <main class="app-container">
+    <header class="app-header animate-fade-in">
+      <div class="logo">👁️</div>
+      <h1>Doll Eyes Splitter</h1>
+      <p class="subtitle">Segment individual doll eyes (single eyes, pairs, or sheets) with transparent PNG export using Gemini AI & Canvas</p>
+    </header>
+
+    <div class="grid-layout">
+      <!-- Left Column: Settings and Controls -->
+      <section class="card settings-card animate-slide-in">
+        <h2>Configuration</h2>
+
+        <div class="input-group checkbox-group">
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="extendedWorkflow">
+            <label for="extendedWorkflow" class="checkbox-label">Extended Workflow (HD + Color Variants)</label>
+          </div>
+          <span class="field-hint">Generates 2x HD upscale & color variants (Green, Blue, Brown) for every detected eye.</span>
+        </div>
+        
+        <div class="input-group">
+          <label for="apiKey">Gemini API Key</label>
+          <div class="password-wrapper">
+            <input type="password" id="apiKey" placeholder="AIzaSy..." autocomplete="off">
+            <button id="toggleApiKey" type="button" class="btn-icon">👁️</button>
+          </div>
+          <span class="field-hint">Stored locally in your browser's localStorage.</span>
+        </div>
+
+        <div class="input-group">
+          <label for="modelSelect">Gemini Model</label>
+          <div class="select-wrapper">
+            <select id="modelSelect">
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+              <option value="gemini-1.5-flash" selected>Gemini 1.5 Flash</option>
+              <option value="custom">Custom Model ID...</option>
+            </select>
+          </div>
+          <input type="text" id="customModel" class="hidden-input hidden" placeholder="Enter custom model ID (e.g., gemini-3.5-flash)">
+        </div>
+
+        <div class="input-group">
+          <label for="bgTolerance">Background Tolerance (0-100)</label>
+          <div class="slider-wrapper">
+            <input type="range" id="bgTolerance" min="5" max="100" value="25">
+            <span id="toleranceVal">25</span>
+          </div>
+          <span class="field-hint">Higher values remove more off-white background pixels.</span>
+        </div>
+
+        <div class="input-group">
+          <label for="cropPadding">Crop Box Padding (0-100px)</label>
+          <div class="slider-wrapper">
+            <input type="range" id="cropPadding" min="0" max="100" value="15">
+            <span id="paddingVal">15px</span>
+          </div>
+          <span class="field-hint">Expands the boundary box to avoid cutting off eyelashes.</span>
+        </div>
+      </section>
+
+      <!-- Right Column: Workspace -->
+      <section class="card workspace-card animate-slide-in delay-1">
+        <h2>Workspace</h2>
+
+        <!-- Drag and Drop Upload -->
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*" class="file-input" multiple>
+          <div class="upload-prompt">
+            <div class="upload-icon">📁</div>
+            <p class="primary-text">Drag & drop doll eyes drawings here</p>
+            <p class="secondary-text">Supports multiple files at once</p>
+          </div>
+        </div>
+
+        <!-- Files List & Start Batch Processing -->
+        <div class="batch-controls hidden" id="batchControls">
+          <h3>Files Selected (<span id="filesCount">0</span>)</h3>
+          <div class="files-list" id="filesList"></div>
+          <button id="processBtn" class="btn btn-primary">⚡ Start Batch Processing</button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-container hidden" id="loadingContainer">
+          <div class="spinner"></div>
+          <p id="loadingText">Processing...</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Results Section -->
+    <section class="card results-card hidden animate-slide-in" id="resultsCard">
+      <div class="results-header">
+        <div>
+          <h2>Batch Results</h2>
+          <p class="section-desc">Drag boxes on original images to fine-tune; changes update results instantly.</p>
+        </div>
+        <button id="downloadZipBtn" class="btn btn-primary">📦 Download All (ZIP)</button>
+      </div>
+      
+      <div class="batch-results-list" id="batchResultsList">
+        <!-- Processed image blocks will be inserted here dynamically -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Regenerate Bounding Boxes Modal -->
+  <div class="modal hidden" id="regenerateModal">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h2>Regenerate Bounding Boxes</h2>
+        <button class="close-modal-btn btn-icon" id="closeRegenModal">✕</button>
+      </div>
+      <p class="modal-desc">Edit the prompt sent to Gemini with the original image to recalculate eye boxes.</p>
+      
+      <div class="input-group">
+        <label for="regenPrompt">Detection Prompt</label>
+        <textarea id="regenPrompt" rows="6"></textarea>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="submitRegenBtn" class="btn btn-primary">⚡ Regenerate</button>
+        <button id="cancelRegenBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Eye Image Modal -->
+  <div class="modal hidden" id="editModal">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h2>Ask Gemini to Analyze / Edit Eye</h2>
+        <button class="close-modal-btn btn-icon" id="closeEditModal">✕</button>
+      </div>
+      <p class="modal-desc">Send this cropped eye to Gemini with an instruction (e.g. analyze colours, eyelashes description).</p>
+      
+      <div class="modal-preview-row">
+        <div class="modal-eye-preview checkered-bg">
+          <img id="modalEyeImg" alt="Cropped eye preview">
+        </div>
+        <div class="input-group flex-1">
+          <label for="editPrompt">Your Instruction</label>
+          <textarea id="editPrompt" rows="4" placeholder="e.g., Analyze the colors of the iris, or describe the style of this eye drawing..."></textarea>
+        </div>
+      </div>
+
+      <!-- Gemini Output Display -->
+      <div class="gemini-response-box hidden" id="geminiResponseBox">
+        <label>Gemini Response</label>
+        <div class="response-text" id="responseText"></div>
+      </div>
+      
+      <div class="modal-actions">
+        <button id="submitEditBtn" class="btn btn-primary">💬 Send to Gemini</button>
+        <button id="cancelEditBtn" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <p>Powered by Gemini Multi-modal & HTML5 Canvas • Runs entirely local in your browser</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
