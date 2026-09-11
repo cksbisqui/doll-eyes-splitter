@@ -191,6 +191,29 @@ label {
   letter-spacing: 0.05em;
 }
 
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-text-action {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-text-action:hover {
+  color: var(--accent-hover);
+  background: rgba(56, 189, 248, 0.1);
+}
+
 input[type="text"],
 input[type="password"],
 select,

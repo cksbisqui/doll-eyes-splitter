@@ -56,9 +56,93 @@ Return the coordinates strictly as a valid JSON object:
 }
 Do not return any other text, explanations, or code formatting. Just the JSON object.`;
 
+  const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+
+  // Model Resolver Service
+  async function fetchActiveGeminiModels(apiKey, autoSelect = false) {
+    if (!apiKey) return;
+    
+    if (fetchModelsBtn) {
+      fetchModelsBtn.disabled = true;
+      fetchModelsBtn.textContent = '⏳ Querying API...';
+    }
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (Array.isArray(data.models)) {
+        // Filter models that support content generation (generateContent)
+        const generateModels = data.models
+          .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => {
+            const cleanId = m.name.replace(/^models\//, '');
+            return {
+              id: cleanId,
+              displayName: m.displayName || cleanId,
+              description: m.description || ''
+            };
+          });
+
+        if (generateModels.length > 0) {
+          const currentSelection = localStorage.getItem('gemini_model') || modelSelect.value;
+          
+          // Clear standard options except Custom
+          modelSelect.innerHTML = '';
+          
+          generateModels.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.displayName} (${m.id})`;
+            modelSelect.appendChild(opt);
+          });
+
+          const customOpt = document.createElement('option');
+          customOpt.value = 'custom';
+          customOpt.textContent = 'Custom Model ID...';
+          modelSelect.appendChild(customOpt);
+
+          // Restore selection or pick top flash model
+          if ([...modelSelect.options].some(opt => opt.value === currentSelection)) {
+            modelSelect.value = currentSelection;
+          } else if (autoSelect) {
+            const flashModel = generateModels.find(m => m.id.includes('flash')) || generateModels[0];
+            modelSelect.value = flashModel.id;
+            localStorage.setItem('gemini_model', flashModel.id);
+          }
+
+          if (fetchModelsBtn) {
+            fetchModelsBtn.textContent = `✅ ${generateModels.length} Models Found`;
+            setTimeout(() => { fetchModelsBtn.textContent = '🔄 Refresh Active Models'; }, 3000);
+          }
+          return;
+        }
+      }
+      throw new Error('No compatible generateContent models found for this API key.');
+    } catch (err) {
+      console.warn('Model Resolver error:', err.message);
+      if (fetchModelsBtn) {
+        fetchModelsBtn.textContent = '⚠️ Query Failed';
+        setTimeout(() => { fetchModelsBtn.textContent = '🔄 Refresh Active Models'; }, 3000);
+      }
+      // If error is forbidden / referrer, alert user with resolution help if triggered manually
+      if (!autoSelect) {
+        alert(`Failed to resolve active models: ${err.message}\n\nNote: If you receive a 403 Forbidden / Referrer blocked error, check your API key restrictions in Google Cloud Console.`);
+      }
+    } finally {
+      if (fetchModelsBtn) fetchModelsBtn.disabled = false;
+    }
+  }
+
   // Load configuration from localStorage
   if (localStorage.getItem('gemini_api_key')) {
     apiKeyInput.value = localStorage.getItem('gemini_api_key');
+    // Quietly resolve active models on startup if key exists
+    fetchActiveGeminiModels(apiKeyInput.value.trim(), false);
   }
   if (localStorage.getItem('gemini_model')) {
     const savedModel = localStorage.getItem('gemini_model');
@@ -76,8 +160,28 @@ Do not return any other text, explanations, or code formatting. Just the JSON ob
 
   // Configuration Event Listeners
   apiKeyInput.addEventListener('input', () => {
-    localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+    const key = apiKeyInput.value.trim();
+    localStorage.setItem('gemini_api_key', key);
   });
+
+  apiKeyInput.addEventListener('change', () => {
+    const key = apiKeyInput.value.trim();
+    if (key.length > 20) {
+      fetchActiveGeminiModels(key, true);
+    }
+  });
+
+  if (fetchModelsBtn) {
+    fetchModelsBtn.addEventListener('click', () => {
+      const key = apiKeyInput.value.trim();
+      if (!key) {
+        alert('Please enter a valid Gemini API key first.');
+        apiKeyInput.focus();
+        return;
+      }
+      fetchActiveGeminiModels(key, false);
+    });
+  }
 
   modelSelect.addEventListener('change', () => {
     const val = modelSelect.value;

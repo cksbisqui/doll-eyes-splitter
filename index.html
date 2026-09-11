@@ -47,7 +47,10 @@
         </div>
 
         <div class="input-group">
-          <label for="modelSelect">Gemini Model</label>
+          <div class="label-with-action">
+            <label for="modelSelect">Gemini Model</label>
+            <button id="fetchModelsBtn" type="button" class="btn-text-action" title="Fetch active models from API">🔄 Refresh Active Models</button>
+          </div>
           <div class="select-wrapper">
             <select id="modelSelect">
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
@@ -56,7 +59,7 @@
               <option value="custom">Custom Model ID...</option>
             </select>
           </div>
-          <input type="text" id="customModel" class="hidden-input hidden" placeholder="Enter custom model ID (e.g., gemini-3.5-flash)">
+          <input type="text" id="customModel" class="hidden-input hidden" placeholder="Enter custom model ID (e.g., gemini-2.5-flash)">
         </div>
 
         <div class="input-group">
